@@ -5,6 +5,8 @@ import { BotModule } from './bot/bot.module';
 import { ShoesModule } from './shoes/shoes.module';
 import configuration from './config/configuration';
 import * as LocalSession from 'telegraf-session-local';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
 
 const sessions = new LocalSession({ 
   database: 'sessions.json',
@@ -30,6 +32,8 @@ const sessions = new LocalSession({
     }),
     BotModule,
     ShoesModule,
+    UserModule,
+    AuthModule,
   ],
 })
 export class AppModule {}
