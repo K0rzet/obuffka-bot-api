@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsArray, IsNumber, IsNotEmpty, Transform, Type } from 'class-validator';
+import { IsString, IsEnum, IsArray, IsNumber, IsNotEmpty } from 'class-validator';
 import { Gender } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateShoeDto {
   @ApiProperty({ description: 'Название обуви' })
