@@ -69,18 +69,6 @@ export class UserService {
 			data: { isBanned: false },
 		});
 	}
-
-	async addStars(telegramId: number, amount: number) {
-		const user = await this.findByTelegramId(telegramId);
-		
-		return this.prisma.user.update({
-			where: { telegramId: BigInt(telegramId) },
-			data: {
-				starsBalance: user.starsBalance + amount,
-			},
-		});
-	}
-
 	async getUserById(userId: number) {
 		const user = await this.prisma.user.findUnique({
 			where: { id: userId }
@@ -160,21 +148,6 @@ export class UserService {
 		return this.prisma.user.update({
 			where: { id: user.id },
 			data: { isBanned: false }
-		});
-	}
-
-	async updateUserBalance(userId: number, balance: number) {
-		const user = await this.prisma.user.findUnique({
-			where: { id: userId }
-		});
-
-		if (!user) {
-			throw new NotFoundException(`User with ID ${userId} not found`);
-		}
-
-		return this.prisma.user.update({
-			where: { id: userId },
-			data: { starsBalance: balance }
 		});
 	}
 
