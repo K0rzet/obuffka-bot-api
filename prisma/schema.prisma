@@ -64,12 +64,13 @@ enum Gender {
 
 model Shoe {
   id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   name        String
   description String
   color       String
   gender      Gender
   sizes       Int[]
-  price       Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  price       Int
+  images      String[] // Добавляем поле для хранения URL изображений
 }

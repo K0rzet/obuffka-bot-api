@@ -4,14 +4,25 @@ import { CreateShoeDto } from './dto/create-shoe.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { FilterShoesDto, SortOrder } from './dto/filter-shoes.dto';
 import { Prisma, Shoe } from '@prisma/client';
+import { FileUploadService } from '../common/services/file-upload.service';
 
 @Injectable()
 export class ShoesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fileUploadService: FileUploadService
+  ) {}
 
-  async create(createShoeDto: CreateShoeDto): Promise<Shoe> {
+  async create(createShoeDto: CreateShoeDto, files: Express.Multer.File[]): Promise<Shoe> {
+    const imageUrls = await Promise.all(
+      files.map(file => this.fileUploadService.uploadFile(file))
+    );
+
     return this.prisma.shoe.create({
-      data: createShoeDto,
+      data: {
+        ...createShoeDto,
+        images: imageUrls,
+      },
     });
   }
 
@@ -104,24 +115,44 @@ export class ShoesService {
     return shoe;
   }
 
-  async update(id: number, updateShoeDto: CreateShoeDto): Promise<Shoe> {
-    try {
-      return await this.prisma.shoe.update({
-        where: { id },
-        data: updateShoeDto,
-      });
-    } catch (error) {
+  async update(id: number, updateShoeDto: CreateShoeDto, files?: Express.Multer.File[]): Promise<Shoe> {
+    const shoe = await this.prisma.shoe.findUnique({ where: { id } });
+    if (!shoe) {
       throw new NotFoundException(`Обувь с ID ${id} не найдена`);
     }
+
+    let imageUrls = shoe.images;
+    if (files?.length) {
+      // Удаляем старые изображения
+      await Promise.all(
+        shoe.images.map(url => this.fileUploadService.deleteFile(url))
+      );
+      // Загружаем новые
+      imageUrls = await Promise.all(
+        files.map(file => this.fileUploadService.uploadFile(file))
+      );
+    }
+
+    return this.prisma.shoe.update({
+      where: { id },
+      data: {
+        ...updateShoeDto,
+        images: imageUrls,
+      },
+    });
   }
 
   async remove(id: number): Promise<Shoe> {
-    try {
-      return await this.prisma.shoe.delete({
-        where: { id },
-      });
-    } catch (error) {
+    const shoe = await this.prisma.shoe.findUnique({ where: { id } });
+    if (!shoe) {
       throw new NotFoundException(`Обувь с ID ${id} не найдена`);
     }
+
+    // Удаляем изображения перед удалением записи
+    await Promise.all(
+      shoe.images.map(url => this.fileUploadService.deleteFile(url))
+    );
+
+    return this.prisma.shoe.delete({ where: { id } });
   }
 }

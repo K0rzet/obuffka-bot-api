@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseInterceptors, UploadedFiles, ParseFilePipeBuilder, MaxFileSizeValidator, FileTypeValidator } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ShoesService } from './shoes.service';
 import { CreateShoeDto } from './dto/create-shoe.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { FilterShoesDto, SortOrder } from './dto/filter-shoes.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { Transform } from 'class-transformer';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('shoes')
 @Controller('shoes')
@@ -14,10 +15,32 @@ export class ShoesController {
 
   @Post()
   @Auth('admin')
+  @UseInterceptors(FilesInterceptor('images', 10))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Создать новую обувь' })
   @ApiResponse({ status: 201, description: 'Обувь успешно создана' })
-  create(@Body() createShoeDto: CreateShoeDto) {
-    return this.shoesService.create(createShoeDto);
+  async create(
+    @Body() createShoeDto: CreateShoeDto,
+    @UploadedFiles(
+      new ParseFilePipeBuilder()
+        .addValidator(
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 })
+        )
+        .addValidator(
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png)$/ })
+        )
+        .build({ fileIsRequired: false }),
+    ) files: Express.Multer.File[] = [],
+  ) {
+    const transformedDto = {
+      ...createShoeDto,
+      price: +createShoeDto.price,
+      sizes: Array.isArray(createShoeDto.sizes) 
+        ? createShoeDto.sizes 
+        : JSON.parse(createShoeDto.sizes as string),
+    };
+
+    return this.shoesService.create(transformedDto, files);
   }
 
   @Get()
@@ -40,10 +63,33 @@ export class ShoesController {
 
   @Put(':id')
   @Auth('admin')
+  @UseInterceptors(FilesInterceptor('images', 10))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Обновить обувь' })
   @ApiResponse({ status: 200, description: 'Обувь успешно обновлена' })
-  update(@Param('id') id: string, @Body() updateShoeDto: CreateShoeDto) {
-    return this.shoesService.update(+id, updateShoeDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateShoeDto: CreateShoeDto,
+    @UploadedFiles(
+      new ParseFilePipeBuilder()
+        .addValidator(
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 })
+        )
+        .addValidator(
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png)$/ })
+        )
+        .build({ fileIsRequired: false }),
+    ) files: Express.Multer.File[] = [],
+  ) {
+    const transformedDto = {
+      ...updateShoeDto,
+      price: +updateShoeDto.price,
+      sizes: Array.isArray(updateShoeDto.sizes) 
+        ? updateShoeDto.sizes 
+        : JSON.parse(updateShoeDto.sizes as string),
+    };
+
+    return this.shoesService.update(+id, transformedDto, files);
   }
 
   @Delete(':id')
