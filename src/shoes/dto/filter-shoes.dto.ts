@@ -19,10 +19,16 @@ export class FilterShoesDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ required: false, description: 'Цвет обуви' })
+  @ApiProperty({ required: false, description: 'Цвета обуви (через запятую)', example: 'красный,синий,черный' })
   @IsOptional()
-  @IsString()
-  color?: string;
+  @IsArray()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map(color => color.trim().toLowerCase());
+    }
+    return value;
+  })
+  colors?: string[];
 
   @ApiProperty({ required: false, enum: Gender, description: 'Пол (MALE/FEMALE)' })
   @IsOptional()

@@ -19,7 +19,6 @@ export class ShoesService {
     const { page = 1, limit = 10 } = pagination;
     const skip = (page - 1) * limit;
 
-    // Создаем объект where для фильтрации
     const where: Prisma.ShoeWhereInput = {};
 
     if (filters.name) {
@@ -36,11 +35,13 @@ export class ShoesService {
       };
     }
 
-    if (filters.color) {
-      where.color = {
-        contains: filters.color,
-        mode: 'insensitive'
-      };
+    if (filters.colors?.length) {
+      where.OR = filters.colors.map(color => ({
+        color: {
+          contains: color,
+          mode: 'insensitive'
+        }
+      }));
     }
 
     if (filters.gender) {
@@ -63,12 +64,10 @@ export class ShoesService {
       }
     }
 
-    // Создаем объект orderBy для сортировки
     const orderBy: Prisma.ShoeOrderByWithRelationInput[] = [
-      { createdAt: 'desc' } // По умолчанию сортируем по дате создания
+      { createdAt: 'desc' }
     ];
 
-    // Если указана сортировка по цене, добавляем её первой
     if (filters.priceSort) {
       orderBy.unshift({ price: filters.priceSort });
     }
