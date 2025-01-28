@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShoeDto } from './dto/create-shoe.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
-import { Shoe } from '@prisma/client';
+import { FilterShoesDto, SortOrder } from './dto/filter-shoes.dto';
+import { Prisma, Shoe } from '@prisma/client';
 
 @Injectable()
 export class ShoesService {
@@ -14,16 +15,71 @@ export class ShoesService {
     });
   }
 
-  async findAll(pagination: PaginationDto) {
+  async findAll(pagination: PaginationDto, filters: FilterShoesDto) {
     const { page = 1, limit = 10 } = pagination;
     const skip = (page - 1) * limit;
 
+    // Создаем объект where для фильтрации
+    const where: Prisma.ShoeWhereInput = {};
+
+    if (filters.name) {
+      where.name = {
+        contains: filters.name,
+        mode: 'insensitive'
+      };
+    }
+
+    if (filters.description) {
+      where.description = {
+        contains: filters.description,
+        mode: 'insensitive'
+      };
+    }
+
+    if (filters.color) {
+      where.color = {
+        contains: filters.color,
+        mode: 'insensitive'
+      };
+    }
+
+    if (filters.gender) {
+      where.gender = filters.gender;
+    }
+
+    if (filters.sizes?.length) {
+      where.sizes = {
+        hasSome: filters.sizes
+      };
+    }
+
+    if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+      where.price = {};
+      if (filters.minPrice !== undefined) {
+        where.price.gte = filters.minPrice;
+      }
+      if (filters.maxPrice !== undefined) {
+        where.price.lte = filters.maxPrice;
+      }
+    }
+
+    // Создаем объект orderBy для сортировки
+    const orderBy: Prisma.ShoeOrderByWithRelationInput[] = [
+      { createdAt: 'desc' } // По умолчанию сортируем по дате создания
+    ];
+
+    // Если указана сортировка по цене, добавляем её первой
+    if (filters.priceSort) {
+      orderBy.unshift({ price: filters.priceSort });
+    }
+
     const [total, shoes] = await Promise.all([
-      this.prisma.shoe.count(),
+      this.prisma.shoe.count({ where }),
       this.prisma.shoe.findMany({
+        where,
+        orderBy,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
       }),
     ]);
 

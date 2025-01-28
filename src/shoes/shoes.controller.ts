@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Body, Put, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ShoesService } from './shoes.service';
 import { CreateShoeDto } from './dto/create-shoe.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { FilterShoesDto, SortOrder } from './dto/filter-shoes.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
+import { Transform } from 'class-transformer';
 
 @ApiTags('shoes')
 @Controller('shoes')
@@ -21,8 +23,18 @@ export class ShoesController {
   @Get()
   @ApiOperation({ summary: 'Получить список всей обуви' })
   @ApiResponse({ status: 200, description: 'Возвращает список обуви' })
-  findAll(@Query() pagination: PaginationDto) {
-    return this.shoesService.findAll(pagination);
+  @ApiQuery({ type: FilterShoesDto })
+  findAll(
+    @Query() pagination: PaginationDto,
+    @Query() filters: FilterShoesDto
+  ) {
+    // Преобразуем строковые значения в числа для пагинации
+    const transformedPagination = {
+      page: pagination.page ? Number(pagination.page) : 1,
+      limit: pagination.limit ? Number(pagination.limit) : 10
+    };
+
+    return this.shoesService.findAll(transformedPagination, filters);
   }
 
   @Get(':id')
