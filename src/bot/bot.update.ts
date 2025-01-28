@@ -127,7 +127,7 @@ export class BotUpdate {
     
     // Закрываем предыдущий активный чат пользователя
     const activeChats = await this.botService.getActiveChats();
-    const userActiveChat = activeChats.find(chat => chat.user.telegramId === BigInt(userId));
+    const userActiveChat = activeChats.find(chat => chat.user.telegramId === userId.toString());
     if (userActiveChat) {
       await this.botService.closeChat(userActiveChat.id);
     }
@@ -224,7 +224,7 @@ ID: ${ctx.from.id}
 
     const userId = parseInt(match[1]);
     const chat = await this.botService.getActiveChats();
-    const userChat = chat.find(c => c.user.telegramId === BigInt(userId));
+    const userChat = chat.find(c => c.user.telegramId === userId.toString());
     
     if (!userChat) {
       await ctx.reply('Ошибка: чат с пользователем не найден или закрыт');

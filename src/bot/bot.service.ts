@@ -8,16 +8,16 @@ export class BotService {
 
   async createUser(telegramId: number, username?: string) {
     return this.prisma.user.upsert({
-      where: { telegramId: BigInt(telegramId) },
+      where: { telegramId: telegramId.toString() },
       update: { username },
-      create: { telegramId: BigInt(telegramId), username },
+      create: { telegramId: telegramId.toString(), username },
     });
   }
 
   async createChat(telegramId: number, type: ChatType) {
     const user = await this.prisma.user.upsert({
-      where: { telegramId: BigInt(telegramId) },
-      create: { telegramId: BigInt(telegramId) },
+      where: { telegramId: telegramId.toString() },
+      create: { telegramId: telegramId.toString() },
       update: {},
     });
 
@@ -32,8 +32,8 @@ export class BotService {
 
   async createMessage(chatId: number, telegramId: number, text: string, isAdmin: boolean) {
     const user = await this.prisma.user.upsert({
-      where: { telegramId: BigInt(telegramId) },
-      create: { telegramId: BigInt(telegramId) },
+      where: { telegramId: telegramId.toString() },
+      create: { telegramId: telegramId.toString() },
       update: {},
     });
 
@@ -69,7 +69,7 @@ export class BotService {
 
   async getUserByTelegramId(telegramId: number) {
     return this.prisma.user.findUnique({
-      where: { telegramId: BigInt(telegramId) },
+      where: { telegramId: telegramId.toString() },
     });
   }
 
