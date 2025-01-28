@@ -14,7 +14,7 @@ export class AuthService {
 		private readonly jwtService: JwtService
 	) {}
 	async login(initData: string) {
-		const botToken = process.env.BOT_TOKEN
+		const botToken = process.env.TELEGRAM_TOKEN
 
 		try {
 			validate(initData, botToken, {
