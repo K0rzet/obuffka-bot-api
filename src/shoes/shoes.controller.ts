@@ -28,13 +28,7 @@ export class ShoesController {
     @Query() pagination: PaginationDto,
     @Query() filters: FilterShoesDto
   ) {
-    // Преобразуем строковые значения в числа для пагинации
-    const transformedPagination = {
-      page: pagination.page ? Number(pagination.page) : 1,
-      limit: pagination.limit ? Number(pagination.limit) : 10
-    };
-
-    return this.shoesService.findAll(transformedPagination, filters);
+    return this.shoesService.findAll(pagination, filters);
   }
 
   @Get(':id')
