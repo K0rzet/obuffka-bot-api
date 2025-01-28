@@ -59,19 +59,6 @@ export class UserController {
 		return this.userService.setUserIsAdmin(Number(id), true)
 	}
 
-  @Put(':id/balance')
-  @Auth('admin')
-  @ApiOperation({ summary: 'Update user balance' })
-  @ApiResponse({ status: 200, description: 'Updates user balance' })
-  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  @ApiResponse({ status: 403, description: 'Доступ запрещен' })
-  async updateBalance(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateBalanceDto: UpdateBalanceDto,
-  ): Promise<User> {
-    return this.userService.updateUserBalance(id, updateBalanceDto.balance);
-  }
-
   @Post('ban/:username')
   @Auth('admin')
   @ApiOperation({ summary: 'Ban user' })
