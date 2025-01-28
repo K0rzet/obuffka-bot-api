@@ -9,23 +9,16 @@ export class UserService {
 
 	constructor(private readonly prisma: PrismaService) {}
 
-	private transformUser(user: User) {
-		return {
-			...user,
-			telegramId: user.telegramId.toString(),
-		};
-	}
-
 	async findByTelegramId(telegramId: number) {
 		return this.prisma.user.findUnique({
-			where: { telegramId: BigInt(telegramId) },
+			where: { telegramId: telegramId.toString() },
 		});
 	}
 
 	async create(telegramId: number, username?: string) {
 		return this.prisma.user.create({
 			data: {
-				telegramId: BigInt(telegramId),
+				telegramId: telegramId.toString(),
 				username,
 			},
 		});
@@ -58,25 +51,24 @@ export class UserService {
 
 	async setAdmin(telegramId: number, isAdmin: boolean) {
 		return this.prisma.user.update({
-			where: { telegramId: BigInt(telegramId) },
+			where: { telegramId: telegramId.toString() },
 			data: { isAdmin },
 		});
 	}
 
 	async ban(telegramId: number) {
 		return this.prisma.user.update({
-			where: { telegramId: BigInt(telegramId) },
+			where: { telegramId: telegramId.toString() },
 			data: { isBanned: true },
 		});
 	}
 
 	async unban(telegramId: number) {
 		return this.prisma.user.update({
-			where: { telegramId: BigInt(telegramId) },
+			where: { telegramId: telegramId.toString() },
 			data: { isBanned: false },
 		});
 	}
-
 	async getUserById(userId: number) {
 		const user = await this.prisma.user.findUnique({
 			where: { id: userId }
@@ -86,7 +78,7 @@ export class UserService {
 			throw new NotFoundException(`User with ID ${userId} not found`);
 		}
 
-		return this.transformUser(user);
+		return user
 	}
 
 	async getAllUsers(username?: string, pagination: PaginationDto = { page: 1, limit: 10 }): Promise<PaginatedResponse<User>> {
@@ -113,7 +105,7 @@ export class UserService {
 		]);
 
 		return {
-			data: items.map(user => this.transformUser(user)),
+			data: items,
 			meta: {
 				total,
 				page,
@@ -160,15 +152,10 @@ export class UserService {
 	}
 
 	async findOrCreateUser(telegramId: number, username?: string) {
-		const user = await this.prisma.user.upsert({
-			where: { telegramId: BigInt(telegramId) },
-			update: { username },
-			create: { 
-				telegramId: BigInt(telegramId), 
-				username,
-			},
-		});
-
-		return { user: this.transformUser(user) };
+		const user = await this.findByTelegramId(telegramId);
+		if (user) return { user };
+		
+		const newUser = await this.create(telegramId, username);
+		return { user: newUser };
 	}
 }
