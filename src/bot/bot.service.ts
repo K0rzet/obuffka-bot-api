@@ -85,4 +85,8 @@ export class BotService {
       include: { user: true }
     });
   }
+
+  async getAllUsers() {
+    return this.prisma.user.findMany();
+  }
 }

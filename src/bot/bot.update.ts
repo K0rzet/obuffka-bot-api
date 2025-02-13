@@ -46,12 +46,41 @@ export class BotUpdate {
       if (text === '📋 Показать активные чаты') {
         return this.showActiveChats(ctx);
       }
+      if (text === '📨 Рассылка') {
+        ctx.session.isMassSending = true;
+        await ctx.reply('Отправьте сообщение для массовой рассылки (можно с фото или файлами). Для отмены используйте /cancel');
+        return;
+      }
       if (ctx.session.replyToUser) {
         const userId = BigInt(ctx.session.replyToUser);
         await ctx.telegram.sendMessage(Number(userId), text);
         await ctx.reply('Сообщение отправлено. Продолжайте писать или используйте /cancel для завершения');
         return;
       }
+      if (ctx.session.isMassSending) {
+        const users = await this.botService.getAllUsers();
+        let successCount = 0;
+        let errorCount = 0;
+        
+        const message = ctx.message as Message.TextMessage;
+        
+        for (const user of users) {
+          try {
+            if (user.telegramId) {
+              await ctx.telegram.sendMessage(Number(user.telegramId), message.text);
+              successCount++;
+            }
+          } catch (error) {
+            errorCount++;
+            console.error(`Failed to send message to user ${user.telegramId}: ${error.message}`);
+          }
+        }
+
+        delete ctx.session.isMassSending;
+        await ctx.reply(`Рассылка завершена!\nУспешно отправлено: ${successCount}\nОшибок отправки: ${errorCount}`);
+        return;
+      }
+
       return this.handleAdminMessage(ctx);
     }
 
@@ -91,6 +120,50 @@ export class BotUpdate {
       }
     }
 
+    if (ctx.session.isWaitingForAdmin) {
+      return this.forwardToAdmin(ctx);
+    }
+  }
+
+  @On(['photo', 'document'])
+  async handleMedia(@Ctx() ctx: Context) {
+    const user = await this.botService.getUserByTelegramId(ctx.from.id);
+    const isAdmin = user?.isAdmin;
+
+    if (isAdmin && ctx.session.isMassSending) {
+      const users = await this.botService.getAllUsers();
+      let successCount = 0;
+      let errorCount = 0;
+
+      const message = ctx.message as Message.PhotoMessage | Message.DocumentMessage;
+      
+      for (const user of users) {
+        try {
+          if (user.telegramId) {
+            if ('photo' in message) {
+              const photo = message.photo[message.photo.length - 1];
+              await ctx.telegram.sendPhoto(Number(user.telegramId), photo.file_id, {
+                caption: message.caption
+              });
+            } else if ('document' in message) {
+              await ctx.telegram.sendDocument(Number(user.telegramId), message.document.file_id, {
+                caption: message.caption
+              });
+            }
+            successCount++;
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Failed to send message to user ${user.telegramId}: ${error.message}`);
+        }
+      }
+
+      delete ctx.session.isMassSending;
+      await ctx.reply(`Рассылка завершена!\nУспешно отправлено: ${successCount}\nОшибок отправки: ${errorCount}`);
+      return;
+    }
+
+    // Handle other media messages for non-admin users or non-mass-sending mode
     if (ctx.session.isWaitingForAdmin) {
       return this.forwardToAdmin(ctx);
     }
