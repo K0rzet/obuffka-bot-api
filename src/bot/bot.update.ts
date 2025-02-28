@@ -188,7 +188,8 @@ export class BotUpdate {
     }
 
     for (const chat of chats) {
-      const lastMessage = chat.messages[0];
+      // Берем только последнее сообщение
+      const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
       const messageText = `
 Тип: ${chat.type === ChatType.QUESTION ? '❓ Вопрос' : '🛍 Заказ'}
 От пользователя: ${chat.user.username || chat.user.telegramId}
