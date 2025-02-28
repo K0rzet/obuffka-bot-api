@@ -28,8 +28,8 @@ export class BotUpdate {
       return;
     }
 
-    await ctx.reply('Выберите действие:', Markup.keyboard([
-      ['❓ Как сделать заказ?', '📞 Сделать заказ или задать вопрос']
+    await ctx.reply('Напишите ваше сообщение, и администратор ответит вам в ближайшее время', Markup.keyboard([
+      ['❓ Как сделать заказ?']
     ]).resize());
   }
 
@@ -123,6 +123,16 @@ export class BotUpdate {
     if (ctx.session.isWaitingForAdmin) {
       return this.forwardToAdmin(ctx);
     }
+
+    // Упрощенная логика для обычных пользователей
+    if (!ctx.session.chatId) {
+      // Создаем новый чат для каждого сообщения
+      const chat = await this.botService.createChat(ctx.from.id, ChatType.QUESTION);
+      ctx.session.chatId = chat.id;
+    }
+
+    // Пересылаем сообщение администраторам
+    return this.forwardToAdmin(ctx);
   }
 
   @On(['photo', 'document'])
