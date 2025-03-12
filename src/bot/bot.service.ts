@@ -6,11 +6,11 @@ import { ChatType, ChatStatus } from '@prisma/client';
 export class BotService {
   constructor(private prisma: PrismaService) {}
 
-  async createUser(telegramId: number, username?: string) {
+  async createUser(telegramId: number, username?: string, firstName?: string, lastName?: string) {
     return this.prisma.user.upsert({
       where: { telegramId: telegramId.toString() },
-      update: { username },
-      create: { telegramId: telegramId.toString(), username },
+      update: { username, firstName, lastName },
+      create: { telegramId: telegramId.toString(), username, firstName, lastName },
     });
   }
 

@@ -17,7 +17,12 @@ export class BotUpdate {
 
   @Start()
   async startCommand(@Ctx() ctx: Context) {
-    const user = await this.botService.createUser(ctx.from.id, ctx.from.username);
+    const user = await this.botService.createUser(
+      ctx.from.id, 
+      ctx.from.username, 
+      ctx.from.first_name, 
+      ctx.from.last_name
+    );
     const isAdmin = user.isAdmin;
 
     if (isAdmin) {
@@ -221,11 +226,15 @@ export class BotUpdate {
 
     const message = ctx.message as Message.PhotoMessage | Message.DocumentMessage | Message.VoiceMessage | Message.VideoNoteMessage | Message.VideoMessage;
     const admins = await this.botService.getAdmins();
+    
+    // Создаем ссылку на диалог с пользователем
+    const userLink = `tg://user?id=${ctx.from.id}`;
 
     const messageText = `
 Новое сообщение с медиа
-От: ${ctx.from.username ? '@' + ctx.from.username : 'Пользователь'}
+От: ${this.formatUserInfo(ctx.from)}
 ID: ${ctx.from.id}
+[Открыть диалог](${userLink})
 ${'caption' in message && message.caption ? `Текст: ${message.caption}` : ''}
 `;
 
@@ -286,12 +295,17 @@ ${'caption' in message && message.caption ? `Текст: ${message.caption}` : '
     for (const chat of chats) {
       // Берем только последнее сообщение
       const lastMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+      // Создаем ссылку на диалог с пользователем
+      const userLink = `tg://user?id=${chat.user.telegramId}`;
+      
       const messageText = `
 Тип: ${chat.type === ChatType.QUESTION ? '❓ Вопрос' : '🛍 Заказ'}
-От пользователя: ${chat.user.username || chat.user.telegramId}
+От пользователя: ${this.formatUserInfo(chat.user)}
+[Открыть диалог](${userLink})
 Последнее сообщение: ${lastMessage?.text || 'Нет сообщений'}
 `;
       await ctx.reply(messageText, {
+        parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
           [
             Markup.button.callback('✍️ Ответить', `reply_${chat.id}`),
@@ -333,11 +347,17 @@ ${'caption' in message && message.caption ? `Текст: ${message.caption}` : '
 
     const admins = await this.botService.getAdmins();
     const message = ctx.message as Message.TextMessage;
+    
+    // Форматируем информацию о пользователе
+    const userInfo = this.formatUserInfo(ctx.from);
+    // Создаем ссылку на диалог с пользователем
+    const userLink = `tg://user?id=${ctx.from.id}`;
 
     const messageText = `
 Новое ${ctx.session.type === 'question' ? 'обращение' : 'заказ'}
-От: ${ctx.from.username ? '@' + ctx.from.username : 'Пользователь'}
+От: ${userInfo}
 ID: ${ctx.from.id}
+[Открыть диалог](${userLink})
 Сообщение: ${message.text}
 `;
 
@@ -345,6 +365,7 @@ ID: ${ctx.from.id}
     
     for (const admin of admins) {
       await ctx.telegram.sendMessage(Number(admin.telegramId), messageText, {
+        parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
           Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
         ])
@@ -416,5 +437,17 @@ ID: ${ctx.from.id}
     await ctx.reply('Сообщение отправлено. Продолжайте писать или используйте /cancel для завершения');
     
     ctx.session.replyToUser = String(userId);
+  }
+
+  private formatUserInfo(user: any): string {
+    const parts = [];
+    
+    if (user.first_name) parts.push(user.first_name);
+    if (user.last_name) parts.push(user.last_name);
+    
+    const fullName = parts.length > 0 ? parts.join(' ') : 'Неизвестный пользователь';
+    const username = user.username ? `@${user.username}` : '';
+    
+    return username ? `${fullName} (${username})` : fullName;
   }
 } 
