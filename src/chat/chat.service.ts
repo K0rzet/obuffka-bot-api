@@ -21,10 +21,6 @@ export class ChatService {
   async getChats(adminId?: number, status?: ChatStatus) {
     const where: Prisma.ChatWhereInput = {};
     
-    if (adminId) {
-      where.assignedTo = adminId;
-    }
-    
     if (status) {
       where.status = status;
     }
@@ -192,7 +188,8 @@ export class ChatService {
   }
 
   async getChatStats(adminId?: number) {
-    const where: Prisma.ChatWhereInput = adminId ? { assignedTo: adminId } : {};
+    // Убираем фильтрацию по adminId - показываем статистику по всем чатам
+    const where: Prisma.ChatWhereInput = {};
 
     const [total, active, pending, closed] = await Promise.all([
       this.prisma.chat.count({ where }),
