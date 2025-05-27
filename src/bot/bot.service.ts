@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ChatType, ChatStatus } from '@prisma/client';
+import { ChatType, ChatStatus, MessageType } from '@prisma/client';
 
 @Injectable()
 export class BotService {
@@ -88,5 +88,35 @@ export class BotService {
 
   async getAllUsers() {
     return this.prisma.user.findMany();
+  }
+
+  async createMediaMessage(
+    chatId: number, 
+    telegramId: number, 
+    text: string, 
+    isAdmin: boolean, 
+    messageType: MessageType, 
+    mediaUrl: string, 
+    fileName?: string, 
+    fileSize?: number
+  ) {
+    const user = await this.prisma.user.upsert({
+      where: { telegramId: telegramId.toString() },
+      create: { telegramId: telegramId.toString() },
+      update: {},
+    });
+
+    return this.prisma.message.create({
+      data: {
+        chatId,
+        userId: user.id,
+        text,
+        isAdmin,
+        messageType,
+        mediaUrl,
+        fileName,
+        fileSize,
+      },
+    });
   }
 }

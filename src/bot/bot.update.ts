@@ -213,75 +213,66 @@ export class BotUpdate {
           caption: message.caption
         });
       }
-
-      await ctx.reply('Медиа-сообщение отправлено. Продолжайте писать или используйте /cancel для завершения');
+      
+      await ctx.reply('Медиа сообщение отправлено. Продолжайте писать или используйте /cancel для завершения');
       return;
     }
 
-    // Если это не админ и не массовая рассылка, пересылаем медиа администраторам
+    // Обычный пользователь отправляет медиа
     if (!ctx.session.chatId) {
       const chat = await this.botService.createChat(ctx.from.id, ChatType.QUESTION);
       ctx.session.chatId = chat.id;
     }
 
+    // Сохраняем медиа сообщение в базу данных
     const message = ctx.message as Message.PhotoMessage | Message.DocumentMessage | Message.VoiceMessage | Message.VideoNoteMessage | Message.VideoMessage;
-    const admins = await this.botService.getAdmins();
-    
-    // Создаем ссылку на диалог с пользователем
-    const userLink = `tg://user?id=${ctx.from.id}`;
+    let messageText = '';
+    let mediaUrl = '';
+    let messageType = 'TEXT';
+    let fileName = '';
+    let fileSize = 0;
 
-    const messageText = `
-Новое сообщение с медиа
-От: ${this.formatUserInfo(ctx.from)}
-ID: ${ctx.from.id}
-[Открыть диалог](${userLink})
-${'caption' in message && message.caption ? `Текст: ${message.caption}` : ''}
-`;
-
-    for (const admin of admins) {
-      try {
-        if ('photo' in message) {
-          const photo = message.photo[message.photo.length - 1];
-          await ctx.telegram.sendPhoto(Number(admin.telegramId), photo.file_id, {
-            caption: messageText,
-            ...Markup.inlineKeyboard([
-              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
-            ])
-          });
-        } else if ('document' in message) {
-          await ctx.telegram.sendDocument(Number(admin.telegramId), message.document.file_id, {
-            caption: messageText,
-            ...Markup.inlineKeyboard([
-              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
-            ])
-          });
-        } else if ('voice' in message) {
-          await ctx.telegram.sendVoice(Number(admin.telegramId), message.voice.file_id, {
-            caption: messageText,
-            ...Markup.inlineKeyboard([
-              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
-            ])
-          });
-        } else if ('video_note' in message) {
-          await ctx.telegram.sendVideoNote(Number(admin.telegramId), message.video_note.file_id, {
-            ...Markup.inlineKeyboard([
-              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
-            ])
-          });
-        } else if ('video' in message) {
-          await ctx.telegram.sendVideo(Number(admin.telegramId), message.video.file_id, {
-            caption: messageText,
-            ...Markup.inlineKeyboard([
-              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
-            ])
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to send media to admin ${admin.telegramId}: ${error.message}`);
-      }
+    if ('photo' in message) {
+      const photo = message.photo[message.photo.length - 1];
+      mediaUrl = photo.file_id;
+      messageType = 'PHOTO';
+      messageText = message.caption || '';
+    } else if ('document' in message) {
+      mediaUrl = message.document.file_id;
+      messageType = 'DOCUMENT';
+      fileName = message.document.file_name || 'document';
+      fileSize = message.document.file_size || 0;
+      messageText = message.caption || '';
+    } else if ('voice' in message) {
+      mediaUrl = message.voice.file_id;
+      messageType = 'VOICE';
+      fileSize = message.voice.file_size || 0;
+    } else if ('video_note' in message) {
+      mediaUrl = message.video_note.file_id;
+      messageType = 'VIDEO';
+      fileSize = message.video_note.file_size || 0;
+    } else if ('video' in message) {
+      mediaUrl = message.video.file_id;
+      messageType = 'VIDEO';
+      fileName = message.video.file_name || 'video';
+      fileSize = message.video.file_size || 0;
+      messageText = message.caption || '';
     }
 
-    await ctx.reply('Ваше медиа-сообщение отправлено. Ожидайте ответа администратора.');
+    // Сохраняем сообщение в базу данных
+    await this.botService.createMediaMessage(
+      ctx.session.chatId,
+      ctx.from.id,
+      messageText,
+      false,
+      messageType as any,
+      mediaUrl,
+      fileName,
+      fileSize
+    );
+
+    // Пересылаем медиа администраторам
+    return this.forwardMediaToAdmin(ctx);
   }
 
   private async showActiveChats(ctx: Context) {
@@ -449,5 +440,77 @@ ID: ${ctx.from.id}
     const username = user.username ? `@${user.username}` : '';
     
     return username ? `${fullName} (${username})` : fullName;
+  }
+
+  private async forwardMediaToAdmin(ctx: Context) {
+    const admins = await this.botService.getAdmins();
+    const message = ctx.message as Message.PhotoMessage | Message.DocumentMessage | Message.VoiceMessage | Message.VideoNoteMessage | Message.VideoMessage;
+    
+    // Создаем ссылку на диалог с пользователем
+    const userLink = `tg://user?id=${ctx.from.id}`;
+
+    const messageText = `
+Новое сообщение с медиа
+От: ${this.formatUserInfo(ctx.from)}
+ID: ${ctx.from.id}
+[Открыть диалог](${userLink})
+${'caption' in message && message.caption ? `Текст: ${message.caption}` : ''}
+`;
+
+    for (const admin of admins) {
+      try {
+        if ('photo' in message) {
+          const photo = message.photo[message.photo.length - 1];
+          await ctx.telegram.sendPhoto(Number(admin.telegramId), photo.file_id, {
+            caption: messageText,
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
+            ])
+          });
+        } else if ('document' in message) {
+          await ctx.telegram.sendDocument(Number(admin.telegramId), message.document.file_id, {
+            caption: messageText,
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
+            ])
+          });
+        } else if ('voice' in message) {
+          await ctx.telegram.sendVoice(Number(admin.telegramId), message.voice.file_id, {
+            caption: messageText,
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
+            ])
+          });
+        } else if ('video_note' in message) {
+          await ctx.telegram.sendVideoNote(Number(admin.telegramId), message.video_note.file_id, {
+            ...Markup.inlineKeyboard([
+              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
+            ])
+          });
+          // Отправляем текст отдельно для video_note
+          await ctx.telegram.sendMessage(Number(admin.telegramId), messageText, {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
+            ])
+          });
+        } else if ('video' in message) {
+          await ctx.telegram.sendVideo(Number(admin.telegramId), message.video.file_id, {
+            caption: messageText,
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              Markup.button.callback('✍️ Ответить', `reply_${ctx.session.chatId}`)
+            ])
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to send media to admin ${admin.telegramId}: ${error.message}`);
+      }
+    }
+
+    await ctx.reply('Ваше медиа-сообщение отправлено. Ожидайте ответа администратора.');
   }
 } 

@@ -11,6 +11,7 @@ import {
   ParseFilePipeBuilder,
   MaxFileSizeValidator,
   FileTypeValidator,
+  Inject,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -18,6 +19,7 @@ import { ChatService, CreateMessageDto } from './chat.service';
 import { Auth } from '../auth/decorators/auth.decorator';
 import { ChatStatus, MessageType } from '@prisma/client';
 import { FileUploadService } from '../common/services/file-upload.service';
+import { Telegraf } from 'telegraf';
 
 @ApiTags('chat')
 @Controller('chat')
@@ -25,6 +27,7 @@ export class ChatController {
   constructor(
     private readonly chatService: ChatService,
     private readonly fileUploadService: FileUploadService,
+    @Inject('TELEGRAM_BOT') private readonly bot: Telegraf,
   ) {}
 
   @Get()
@@ -107,7 +110,19 @@ export class ChatController {
       };
     }
 
-    return this.chatService.createMessage(messageData);
+    const createdMessage = await this.chatService.createMessage(messageData);
+
+    // Отправляем сообщение пользователю в Telegram
+    try {
+      await this.bot.telegram.sendMessage(
+        Number(createdMessage.chat.user.telegramId),
+        messageData.text || 'Медиа сообщение'
+      );
+    } catch (error) {
+      console.error('Ошибка отправки сообщения в Telegram:', error);
+    }
+
+    return createdMessage;
   }
 
   @Put(':id/assign')
