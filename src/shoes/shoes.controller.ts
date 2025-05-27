@@ -90,16 +90,6 @@ export class ShoesController {
           ? updateShoeDto.sizes 
           : JSON.parse(updateShoeDto.sizes as string)
         : undefined,
-      existingImages: updateShoeDto.existingImages 
-        ? Array.isArray(updateShoeDto.existingImages)
-          ? updateShoeDto.existingImages
-          : JSON.parse(updateShoeDto.existingImages as string)
-        : undefined,
-      imagesToDelete: updateShoeDto.imagesToDelete
-        ? Array.isArray(updateShoeDto.imagesToDelete)
-          ? updateShoeDto.imagesToDelete
-          : JSON.parse(updateShoeDto.imagesToDelete as string)
-        : undefined,
     };
 
     return this.shoesService.update(+id, transformedDto, files);
