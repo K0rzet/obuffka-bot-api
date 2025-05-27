@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { InjectBot } from 'nestjs-telegraf';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChatType, ChatStatus, MessageType, Prisma } from '@prisma/client';
+import { Telegraf } from 'telegraf';
 
 export interface CreateMessageDto {
   chatId: number;
@@ -16,7 +18,10 @@ export interface CreateMessageDto {
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @InjectBot() private readonly bot: Telegraf,
+  ) {}
 
   async getChats(adminId?: number, status?: ChatStatus) {
     const where: Prisma.ChatWhereInput = {};
@@ -145,6 +150,18 @@ export class ChatService {
       where: { id: data.chatId },
       data: { updatedAt: new Date() },
     });
+
+    // Отправляем сообщение пользователю в Telegram, если это сообщение от админа
+    if (data.isAdmin && message.chat?.user?.telegramId) {
+      try {
+        await this.bot.telegram.sendMessage(
+          Number(message.chat.user.telegramId),
+          data.text || 'Медиа сообщение'
+        );
+      } catch (error) {
+        console.error('Ошибка отправки сообщения в Telegram:', error);
+      }
+    }
 
     return message;
   }
