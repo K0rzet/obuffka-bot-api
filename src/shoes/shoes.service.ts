@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShoeDto } from './dto/create-shoe.dto';
+import { UpdateShoeDto } from './dto/update-shoe.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { FilterShoesDto, SortOrder } from './dto/filter-shoes.dto';
 import { Prisma, Shoe } from '@prisma/client';
@@ -115,30 +116,50 @@ export class ShoesService {
     return shoe;
   }
 
-  async update(id: number, updateShoeDto: CreateShoeDto, files?: Express.Multer.File[]): Promise<Shoe> {
+  async update(id: number, updateShoeDto: UpdateShoeDto, files?: Express.Multer.File[]): Promise<Shoe> {
     const shoe = await this.prisma.shoe.findUnique({ where: { id } });
     if (!shoe) {
       throw new NotFoundException(`Обувь с ID ${id} не найдена`);
     }
 
-    let imageUrls = shoe.images;
+    let finalImages = [...shoe.images];
+
+    // Удаляем указанные изображения
+    if (updateShoeDto.imagesToDelete?.length) {
+      for (const imageUrl of updateShoeDto.imagesToDelete) {
+        await this.fileUploadService.deleteFile(imageUrl);
+        finalImages = finalImages.filter(url => url !== imageUrl);
+      }
+    }
+
+    // Если указаны существующие изображения, используем только их
+    if (updateShoeDto.existingImages) {
+      finalImages = updateShoeDto.existingImages;
+    }
+
+    // Добавляем новые изображения
     if (files?.length) {
-      // Удаляем старые изображения
-      await Promise.all(
-        shoe.images.map(url => this.fileUploadService.deleteFile(url))
-      );
-      // Загружаем новые
-      imageUrls = await Promise.all(
+      const newImageUrls = await Promise.all(
         files.map(file => this.fileUploadService.uploadFile(file))
       );
+      finalImages = [...finalImages, ...newImageUrls];
     }
+
+    // Подготавливаем данные для обновления
+    const updateData: any = {};
+    
+    if (updateShoeDto.name !== undefined) updateData.name = updateShoeDto.name;
+    if (updateShoeDto.description !== undefined) updateData.description = updateShoeDto.description;
+    if (updateShoeDto.color !== undefined) updateData.color = updateShoeDto.color;
+    if (updateShoeDto.gender !== undefined) updateData.gender = updateShoeDto.gender;
+    if (updateShoeDto.sizes !== undefined) updateData.sizes = updateShoeDto.sizes;
+    if (updateShoeDto.price !== undefined) updateData.price = updateShoeDto.price;
+    
+    updateData.images = finalImages;
 
     return this.prisma.shoe.update({
       where: { id },
-      data: {
-        ...updateShoeDto,
-        images: imageUrls,
-      },
+      data: updateData,
     });
   }
 
@@ -154,5 +175,43 @@ export class ShoesService {
     );
 
     return this.prisma.shoe.delete({ where: { id } });
+  }
+
+  async removeImages(id: number, imageUrls: string[]): Promise<Shoe> {
+    const shoe = await this.prisma.shoe.findUnique({ where: { id } });
+    if (!shoe) {
+      throw new NotFoundException(`Обувь с ID ${id} не найдена`);
+    }
+
+    // Удаляем файлы
+    await Promise.all(
+      imageUrls.map(url => this.fileUploadService.deleteFile(url))
+    );
+
+    // Обновляем список изображений в базе данных
+    const updatedImages = shoe.images.filter(url => !imageUrls.includes(url));
+
+    return this.prisma.shoe.update({
+      where: { id },
+      data: { images: updatedImages },
+    });
+  }
+
+  async addImages(id: number, files: Express.Multer.File[]): Promise<Shoe> {
+    const shoe = await this.prisma.shoe.findUnique({ where: { id } });
+    if (!shoe) {
+      throw new NotFoundException(`Обувь с ID ${id} не найдена`);
+    }
+
+    const newImageUrls = await Promise.all(
+      files.map(file => this.fileUploadService.uploadFile(file))
+    );
+
+    const updatedImages = [...shoe.images, ...newImageUrls];
+
+    return this.prisma.shoe.update({
+      where: { id },
+      data: { images: updatedImages },
+    });
   }
 }

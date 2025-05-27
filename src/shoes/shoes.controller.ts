@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseInterceptors
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { ShoesService } from './shoes.service';
 import { CreateShoeDto } from './dto/create-shoe.dto';
+import { UpdateShoeDto } from './dto/update-shoe.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { FilterShoesDto, SortOrder } from './dto/filter-shoes.dto';
 import { Auth } from '../auth/decorators/auth.decorator';
@@ -27,7 +28,7 @@ export class ShoesController {
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 })
         )
         .addValidator(
-          new FileTypeValidator({ fileType: /(jpg|jpeg|png)$/ })
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ })
         )
         .build({ fileIsRequired: false }),
     ) files: Express.Multer.File[] = [],
@@ -69,24 +70,36 @@ export class ShoesController {
   @ApiResponse({ status: 200, description: 'Обувь успешно обновлена' })
   async update(
     @Param('id') id: string,
-    @Body() updateShoeDto: CreateShoeDto,
+    @Body() updateShoeDto: UpdateShoeDto,
     @UploadedFiles(
       new ParseFilePipeBuilder()
         .addValidator(
           new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 })
         )
         .addValidator(
-          new FileTypeValidator({ fileType: /(jpg|jpeg|png)$/ })
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ })
         )
         .build({ fileIsRequired: false }),
     ) files: Express.Multer.File[] = [],
   ) {
     const transformedDto = {
       ...updateShoeDto,
-      price: +updateShoeDto.price,
-      sizes: Array.isArray(updateShoeDto.sizes) 
-        ? updateShoeDto.sizes 
-        : JSON.parse(updateShoeDto.sizes as string),
+      price: updateShoeDto.price ? +updateShoeDto.price : undefined,
+      sizes: updateShoeDto.sizes 
+        ? Array.isArray(updateShoeDto.sizes) 
+          ? updateShoeDto.sizes 
+          : JSON.parse(updateShoeDto.sizes as string)
+        : undefined,
+      existingImages: updateShoeDto.existingImages 
+        ? Array.isArray(updateShoeDto.existingImages)
+          ? updateShoeDto.existingImages
+          : JSON.parse(updateShoeDto.existingImages as string)
+        : undefined,
+      imagesToDelete: updateShoeDto.imagesToDelete
+        ? Array.isArray(updateShoeDto.imagesToDelete)
+          ? updateShoeDto.imagesToDelete
+          : JSON.parse(updateShoeDto.imagesToDelete as string)
+        : undefined,
     };
 
     return this.shoesService.update(+id, transformedDto, files);
@@ -98,5 +111,16 @@ export class ShoesController {
   @ApiResponse({ status: 200, description: 'Обувь успешно удалена' })
   remove(@Param('id') id: string) {
     return this.shoesService.remove(+id);
+  }
+
+  @Delete(':id/images')
+  @Auth('admin')
+  @ApiOperation({ summary: 'Удалить конкретные изображения товара' })
+  @ApiResponse({ status: 200, description: 'Изображения удалены' })
+  async removeImages(
+    @Param('id') id: string,
+    @Body() body: { imageUrls: string[] }
+  ) {
+    return this.shoesService.removeImages(+id, body.imageUrls);
   }
 }

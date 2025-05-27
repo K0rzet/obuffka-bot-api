@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { BotModule } from './bot/bot.module';
 import { ShoesModule } from './shoes/shoes.module';
+import { ChatModule } from './chat/chat.module';
 import configuration from './config/configuration';
 import * as LocalSession from 'telegraf-session-local';
 import { UserModule } from './user/user.module';
@@ -32,6 +33,7 @@ const sessions = new LocalSession({
     }),
     BotModule,
     ShoesModule,
+    ChatModule,
     UserModule,
     AuthModule,
   ],

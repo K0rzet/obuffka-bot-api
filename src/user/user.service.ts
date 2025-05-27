@@ -15,11 +15,13 @@ export class UserService {
 		});
 	}
 
-	async create(telegramId: number, username?: string) {
+	async create(telegramId: number, username?: string, firstName?: string, lastName?: string) {
 		return this.prisma.user.create({
 			data: {
 				telegramId: telegramId.toString(),
 				username,
+				firstName,
+				lastName,
 			},
 		});
 	}
@@ -151,11 +153,21 @@ export class UserService {
 		});
 	}
 
-	async findOrCreateUser(telegramId: number, username?: string) {
+	async findOrCreateUser(telegramId: number, username?: string, firstName?: string, lastName?: string) {
 		const user = await this.findByTelegramId(telegramId);
-		if (user) return { user };
+		if (user) {
+			const updatedUser = await this.prisma.user.update({
+				where: { id: user.id },
+				data: {
+					username: username || user.username,
+					firstName: firstName || user.firstName,
+					lastName: lastName || user.lastName,
+				},
+			});
+			return { user: updatedUser };
+		}
 		
-		const newUser = await this.create(telegramId, username);
+		const newUser = await this.create(telegramId, username, firstName, lastName);
 		return { user: newUser };
 	}
 }
