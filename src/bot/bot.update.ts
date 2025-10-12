@@ -33,6 +33,17 @@ export class BotUpdate {
       return;
     }
 
+    // Проверяем, согласился ли пользователь с условиями
+    if (!ctx.session.agreedToTerms) {
+      await ctx.reply(
+        'Нажимая кнопку продолжить, вы соглашаетесь с тем, что ознакомлены с Политикой обработки персональных данных и даете Согласие на обработку персональных данных и согласие на получение рекламы',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('Продолжить', 'agree_to_terms')]
+        ])
+      );
+      return;
+    }
+
     await ctx.reply('Напишите ваше сообщение, и администратор ответит вам в ближайшее время', Markup.keyboard([
       ['❓ Как сделать заказ?']
     ]).resize());
@@ -43,6 +54,17 @@ export class BotUpdate {
     const user = await this.botService.getUserByTelegramId(ctx.from.id);
     const isAdmin = user?.isAdmin;
     const text = (ctx.message as Message.TextMessage).text;
+
+    // Проверка согласия с условиями для обычных пользователей
+    if (!isAdmin && !ctx.session.agreedToTerms) {
+      await ctx.reply(
+        'Пожалуйста, сначала согласитесь с условиями обработки персональных данных. Используйте команду /start',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('Продолжить', 'agree_to_terms')]
+        ])
+      );
+      return;
+    }
 
     if (isAdmin) {
       if (text === '/cancel') {
@@ -144,6 +166,17 @@ export class BotUpdate {
   async handleMedia(@Ctx() ctx: Context) {
     const user = await this.botService.getUserByTelegramId(ctx.from.id);
     const isAdmin = user?.isAdmin;
+
+    // Проверка согласия с условиями для обычных пользователей
+    if (!isAdmin && !ctx.session.agreedToTerms) {
+      await ctx.reply(
+        'Пожалуйста, сначала согласитесь с условиями обработки персональных данных. Используйте команду /start',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('Продолжить', 'agree_to_terms')]
+        ])
+      );
+      return;
+    }
 
     if (isAdmin && ctx.session.isMassSending) {
       const users = await this.botService.getAllUsers();
@@ -364,6 +397,18 @@ ID: ${ctx.from.id}
     }
     
     await ctx.reply('Ваше сообщение отправлено. Ожидайте ответа администратора.');
+  }
+
+  @Action('agree_to_terms')
+  async handleAgreeToTerms(@Ctx() ctx: Context) {
+    ctx.session.agreedToTerms = true;
+    
+    await ctx.answerCbQuery();
+    await ctx.editMessageText('Спасибо! Вы согласились с условиями обработки персональных данных.');
+    
+    await ctx.reply('Напишите ваше сообщение, и администратор ответит вам в ближайшее время', Markup.keyboard([
+      ['❓ Как сделать заказ?']
+    ]).resize());
   }
 
   @Action(/reply_(\d+)/)

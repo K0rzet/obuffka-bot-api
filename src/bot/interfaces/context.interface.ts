@@ -7,6 +7,7 @@ interface SessionData {
   isWaitingForAdmin?: boolean;
   replyToUser?: string | number;
   isMassSending?: boolean;
+  agreedToTerms?: boolean;
 }
 
 export interface Context extends TelegrafContext {
