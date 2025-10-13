@@ -6,6 +6,7 @@ import { Injectable } from '@nestjs/common';
 import { Message } from 'telegraf/typings/core/types/typegram';
 import { BotService } from './bot.service';
 import { ChatType, ChatStatus } from '@prisma/client';
+import { join } from 'path';
 
 @Injectable()
 @Update()
@@ -35,12 +36,7 @@ export class BotUpdate {
 
     // Проверяем, согласился ли пользователь с условиями
     if (!ctx.session.agreedToTerms) {
-      await ctx.reply(
-        'Нажимая кнопку продолжить, вы соглашаетесь с тем, что ознакомлены с Политикой обработки персональных данных и даете Согласие на обработку персональных данных и согласие на получение рекламы',
-        Markup.inlineKeyboard([
-          [Markup.button.callback('Продолжить', 'agree_to_terms')]
-        ])
-      );
+      await this.sendPrivacyPolicyDocuments(ctx);
       return;
     }
 
@@ -57,12 +53,7 @@ export class BotUpdate {
 
     // Проверка согласия с условиями для обычных пользователей
     if (!isAdmin && !ctx.session.agreedToTerms) {
-      await ctx.reply(
-        'Пожалуйста, сначала согласитесь с условиями обработки персональных данных. Используйте команду /start',
-        Markup.inlineKeyboard([
-          [Markup.button.callback('Продолжить', 'agree_to_terms')]
-        ])
-      );
+      await this.sendPrivacyPolicyDocuments(ctx);
       return;
     }
 
@@ -169,12 +160,7 @@ export class BotUpdate {
 
     // Проверка согласия с условиями для обычных пользователей
     if (!isAdmin && !ctx.session.agreedToTerms) {
-      await ctx.reply(
-        'Пожалуйста, сначала согласитесь с условиями обработки персональных данных. Используйте команду /start',
-        Markup.inlineKeyboard([
-          [Markup.button.callback('Продолжить', 'agree_to_terms')]
-        ])
-      );
+      await this.sendPrivacyPolicyDocuments(ctx);
       return;
     }
 
@@ -473,6 +459,41 @@ ID: ${ctx.from.id}
     await ctx.reply('Сообщение отправлено. Продолжайте писать или используйте /cancel для завершения');
     
     ctx.session.replyToUser = String(userId);
+  }
+
+  private async sendPrivacyPolicyDocuments(ctx: Context) {
+    try {
+      const documentsPath = join(process.cwd(), 'documents');
+      
+      // Отправляем политику обработки персональных данных
+      const policyPath = join(documentsPath, 'политика.pdf');
+      await ctx.replyWithDocument({ source: policyPath, filename: 'Политика обработки персональных данных.pdf' });
+      
+      // Отправляем согласие на обработку
+      const consentPath = join(documentsPath, 'согласие на обработку.pdf');
+      await ctx.replyWithDocument({ source: consentPath, filename: 'Согласие на обработку персональных данных.pdf' });
+      
+      // Отправляем согласие на рекламу
+      const adConsentPath = join(documentsPath, 'согласие на рекламу.pdf');
+      await ctx.replyWithDocument({ source: adConsentPath, filename: 'Согласие на получение рекламы.pdf' });
+      
+      // Отправляем сообщение с кнопкой
+      await ctx.reply(
+        'Нажимая кнопку продолжить, вы соглашаетесь с тем, что ознакомлены с Политикой обработки персональных данных и даете Согласие на обработку персональных данных и согласие на получение рекламы',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('Продолжить', 'agree_to_terms')]
+        ])
+      );
+    } catch (error) {
+      console.error('Error sending privacy policy documents:', error);
+      // Если не удалось отправить документы, отправляем хотя бы текст
+      await ctx.reply(
+        'Нажимая кнопку продолжить, вы соглашаетесь с тем, что ознакомлены с Политикой обработки персональных данных и даете Согласие на обработку персональных данных и согласие на получение рекламы',
+        Markup.inlineKeyboard([
+          [Markup.button.callback('Продолжить', 'agree_to_terms')]
+        ])
+      );
+    }
   }
 
   private escapeMarkdown(text: string): string {
