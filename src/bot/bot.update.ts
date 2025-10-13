@@ -324,9 +324,9 @@ export class BotUpdate {
       
       const messageText = `
 Тип: ${chat.type === ChatType.QUESTION ? '❓ Вопрос' : '🛍 Заказ'}
-От пользователя: ${this.formatUserInfo(chat.user)}
+От пользователя: ${this.escapeMarkdown(this.formatUserInfo(chat.user))}
 [Открыть диалог](${userLink})
-Последнее сообщение: ${lastMessage?.text || 'Нет сообщений'}
+Последнее сообщение: ${this.escapeMarkdown(lastMessage?.text || 'Нет сообщений')}
 `;
       await ctx.reply(messageText, {
         parse_mode: 'Markdown',
@@ -373,7 +373,7 @@ export class BotUpdate {
     const message = ctx.message as Message.TextMessage;
     
     // Форматируем информацию о пользователе
-    const userInfo = this.formatUserInfo(ctx.from);
+    const userInfo = this.escapeMarkdown(this.formatUserInfo(ctx.from));
     // Создаем ссылку на диалог с пользователем
     const userLink = `tg://user?id=${ctx.from.id}`;
 
@@ -382,7 +382,7 @@ export class BotUpdate {
 От: ${userInfo}
 ID: ${ctx.from.id}
 [Открыть диалог](${userLink})
-Сообщение: ${message.text}
+Сообщение: ${this.escapeMarkdown(message.text)}
 `;
 
     await this.botService.createMessage(ctx.session.chatId, ctx.from.id, message.text, false);
@@ -475,6 +475,11 @@ ID: ${ctx.from.id}
     ctx.session.replyToUser = String(userId);
   }
 
+  private escapeMarkdown(text: string): string {
+    // Экранируем специальные символы Markdown
+    return text.replace(/([_*\[\]()~`>#+=|{}.!-])/g, '\\$1');
+  }
+
   private formatUserInfo(user: any): string {
     const parts = [];
     
@@ -496,10 +501,10 @@ ID: ${ctx.from.id}
 
     const messageText = `
 Новое сообщение с медиа
-От: ${this.formatUserInfo(ctx.from)}
+От: ${this.escapeMarkdown(this.formatUserInfo(ctx.from))}
 ID: ${ctx.from.id}
 [Открыть диалог](${userLink})
-${'caption' in message && message.caption ? `Текст: ${message.caption}` : ''}
+${'caption' in message && message.caption ? `Текст: ${this.escapeMarkdown(message.caption)}` : ''}
 `;
 
     for (const admin of admins) {
